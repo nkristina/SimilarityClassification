@@ -1,6 +1,8 @@
 import numpy as np
 import matplotlib.pyplot as plt
 from torchvision.utils import make_grid
+import torch
+from torch import optim, nn
 
 # Functions to display single or a batch of sample images
 def imshow(img):
@@ -30,3 +32,9 @@ def show_image_pair(dataloader):
     imshow(images2[random_num])
     label = labels[random_num]
     print(f'Label: {label}, Shape: {images1[random_num].shape}')
+
+def get_accuracy_bin(y_true, y_prob, treshold):
+    sig = nn.Sigmoid()
+    y_prob = sig(y_prob)
+    y_prob = y_prob > treshold
+    return (y_true == y_prob).sum().item() / y_true.size(0)

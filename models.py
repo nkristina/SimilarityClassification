@@ -1,7 +1,5 @@
 import torch
-from torch import optim, nn
-from torch.utils.data import DataLoader, TensorDataset, Dataset
-from torchvision import transforms as T
+from torch import nn
 from torchvision import models
 import torch.nn.functional as F
 
@@ -67,16 +65,19 @@ class SiameseNetworkSimple(nn.Module):
         output2 = self.forward_once(input2)
         return output1, output2
 
-class Efficient():
-    def __init__(self, embeding_size):
+class EfficientClassification(nn.Module):
+    def __init__(self, num_clas):
+        super(EfficientClassification, self).__init__()
         self.model = models.efficientnet_b0(pretrained=True)
         for params in self.model.parameters():
             params.requires_grad = False
         
-        self.model.classifier[1] = nn.Linear(in_features=1280, out_features=embeding_size)
+        self.model.classifier[1] = nn.Linear(in_features=1280, out_features=num_clas)
 
-    def Model(self):
-        return self.model
+    def forward(self, input1):
+        # forward pass of input 1
+        output1 = self.model(input1)
+        return output1
 
 class EfficientSiemens(nn.Module):
     def __init__(self, embeding_size):
@@ -91,6 +92,7 @@ class EfficientSiemens(nn.Module):
 
         pytorch_total_params = sum(p.numel() for p in self.model.parameters() if p.requires_grad)
         print(pytorch_total_params)
+        
 
     def forward(self, input1, input2):
         # forward pass of input 1
@@ -98,3 +100,37 @@ class EfficientSiemens(nn.Module):
         # forward pass of input 2
         output2 = self.model(input2)
         return output1, output2
+
+
+class EfficientSiemensBinary(nn.Module):
+    def __init__(self, embeding_size):
+        super(EfficientSiemensBinary, self).__init__()
+        print("INIT")
+        self.model = models.efficientnet_b0(pretrained=True)
+
+        for params in self.model.parameters():
+            params.requires_grad = False
+        
+        self.model.classifier[1] = nn.Linear(in_features=1280, out_features=embeding_size)
+
+        pytorch_total_params = sum(p.numel() for p in self.model.parameters() if p.requires_grad)
+        print(pytorch_total_params)
+
+        self.fc1 = nn.Sequential(
+        nn.Linear(2*embeding_size,16),
+        nn.ReLU(inplace=True),
+        nn.Dropout2d(p=0.05),
+        
+        nn.Linear(16, 1))
+
+        pytorch_total_params = sum(p.numel() for p in self.fc1.parameters() if p.requires_grad)
+        print(pytorch_total_params)
+
+    def forward(self, input1, input2):
+        # forward pass of input 1
+        output1 = self.model(input1)
+        # forward pass of input 2
+        output2 = self.model(input2)
+        input = torch.cat((output1,output2),dim=1)
+        output = self.fc1(input)
+        return output
