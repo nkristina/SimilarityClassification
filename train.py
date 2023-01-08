@@ -113,7 +113,7 @@ def trainClass(net, tresholds, epochs, train_dataloader, device, optimizer, crit
             sm = torch.nn.Softmax()
             outputS = sm(output)
             _, predicted = torch.max(outputS, 1)
-            acc_ep += (predicted == label).sum().item()
+            acc_ep += (predicted == torch.reshape(label,[label.size()[0]])).sum().item()
             items = items + len(label)
             batch = batch + 1
         print("Epoch {}\n Current loss {}".format(epoch,loss_contrastive.item()))

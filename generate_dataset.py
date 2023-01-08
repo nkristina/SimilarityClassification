@@ -30,7 +30,7 @@ def generate_ds(name, num_class=20, ds_size=None):
     fp.close()
 
     # SECOND STEP
-    classes = classes[0:num_class]
+    classes = classes[1:num_class+1]
 
     first_img = []
     second_img = []
@@ -115,6 +115,165 @@ class SiameseDataset(Dataset):
             img1 = self.transform(img1)
         label = torch.from_numpy(np.array([int(self.train_df.iat[index,2])],dtype=np.float32))
         smpl = [img0, img1, label]
+        return smpl
+
+    def __len__(self):
+        return len(self.train_df)
+
+
+def generate_ds_class(name, num_class=20, ds_size=None):
+    # Define main data directory
+    DATA_DIR = 'tiny-imagenet-200-test' # Original images come in shapes of [3,64,64]
+
+    # Define training and validation data paths
+    TRAIN_DIR = os.path.join(DATA_DIR, 'train') 
+    VALID_DIR = os.path.join(DATA_DIR, 'val')
+
+    # Open and read val annotations text file
+    fp = open(os.path.join(DATA_DIR, 'wnids.txt'), 'r')
+    data = fp.readlines()
+
+    # Create dictionary to store img filename (word 0) and corresponding
+    # label (word 1) for every line in the txt file (as key value pair)
+    #classes_enum = {}
+    classes = []
+    for line in data:
+        words = line.split('\n')
+        classes.append(words[0])
+    fp.close()
+
+    # SECOND STEP
+    classes = classes[1:num_class+1]
+
+    first_img = []
+    second_img = []
+    label = []
+
+    for i in range(ds_size):
+        id = np.random.randint(0,num_class)
+        clas1 = classes[id]
+        label.append(str(id))
+
+        img_dir1 = os.path.join(TRAIN_DIR, clas1)
+        fp1 = open(os.path.join(img_dir1, clas1 + '_boxes.txt'), 'r')
+        data1 = fp1.readlines()
+
+        ok1 = False
+        while not ok1:
+            choise = data1[np.random.randint(0,len(data1))].split('\t')[0]
+            path  = os.path.join(img_dir1,'images')
+            path = os.path.join(path,choise)
+            if(os.path.exists(path) and Image.open(path).mode=='RGB'):
+                first_img.append(choise)
+                ok1 = True
+        fp1.close()
+
+    new_data = {'First': first_img, 'Label': label}
+    df = pd.DataFrame(new_data)
+    df.to_csv(name, index=False, header=None)
+    
+#preprocessing and loading the dataset
+class SiameseDataset(Dataset):
+    def __init__(self,training_csv=None,training_dir=None,transform=None):
+        # used to prepare the labels and images path
+        self.train_df=pd.read_csv(training_csv)
+        self.train_dir = training_dir    
+        self.transform = transform
+
+    def __getitem__(self,index):
+        # getting the image path
+        img1 = self.train_df.iat[index,0]
+        class1 = img1.split('_')[0]
+        image1_path=os.path.join(self.train_dir,class1)
+        image1_path=os.path.join(image1_path,'images')
+        image1_path=os.path.join(image1_path,img1)
+
+        img2 = self.train_df.iat[index,1]
+        class2 = img2.split('_')[0]
+        image2_path=os.path.join(self.train_dir,class2)
+        image2_path=os.path.join(image2_path,'images')
+        image2_path=os.path.join(image2_path,img2)
+
+        # Loading the image
+        img0 = Image.open(image1_path)
+        img1 = Image.open(image2_path)
+        # img1.transpose((2, 0, 1))
+        # img2.transpose((2, 0, 1))
+        
+        # Apply image transformations
+        if self.transform is not None:
+            img0 = self.transform(img0)
+            img1 = self.transform(img1)
+        label = torch.from_numpy(np.array([int(self.train_df.iat[index,2])],dtype=np.float32))
+        smpl = [img0, img1, label]
+        return smpl
+
+    def __len__(self):
+        return len(self.train_df)
+
+#preprocessing and loading the dataset
+class SDataset(Dataset):
+    def __init__(self,training_csv=None,training_dir=None,transform=None):
+        # used to prepare the labels and images path
+        self.train_df=pd.read_csv(training_csv)
+        self.train_dir = training_dir    
+        self.transform = transform
+
+    def __getitem__(self,index):
+        # getting the image path
+        img1 = self.train_df.iat[index,0]
+        class1 = img1.split('_')[0]
+        image1_path=os.path.join(self.train_dir,class1)
+        image1_path=os.path.join(image1_path,'images')
+        image1_path=os.path.join(image1_path,img1)
+
+        img2 = self.train_df.iat[index,1]
+        class2 = img2.split('_')[0]
+        image2_path=os.path.join(self.train_dir,class2)
+        image2_path=os.path.join(image2_path,'images')
+        image2_path=os.path.join(image2_path,img2)
+
+        # Loading the image
+        img0 = Image.open(image1_path)
+        img1 = Image.open(image2_path)
+        # img1.transpose((2, 0, 1))
+        # img2.transpose((2, 0, 1))
+        
+        # Apply image transformations
+        if self.transform is not None:
+            img0 = self.transform(img0)
+            img1 = self.transform(img1)
+        label = torch.from_numpy(np.array([int(self.train_df.iat[index,2])],dtype=np.float32))
+        smpl = [img0, img1, label]
+        return smpl
+
+
+#preprocessing and loading the dataset
+class ClassificationDataset(Dataset):
+    def __init__(self,training_csv=None,training_dir=None,transform=None):
+        # used to prepare the labels and images path
+        self.train_df=pd.read_csv(training_csv)
+        self.train_dir = training_dir    
+        self.transform = transform
+
+    def __getitem__(self,index):
+        # getting the image path
+        img1 = self.train_df.iat[index,0]
+        class1 = img1.split('_')[0]
+        image1_path=os.path.join(self.train_dir,class1)
+        image1_path=os.path.join(image1_path,'images')
+        image1_path=os.path.join(image1_path,img1)
+
+        # Loading the image
+        img0 = Image.open(image1_path)
+        # img1.transpose((2, 0, 1))
+        # img2.transpose((2, 0, 1))
+        
+        # Apply image transformations
+        if self.transform is not None:
+            img0 = self.transform(img0)
+        label = torch.from_numpy(np.array([int(self.train_df.iat[index,1])],dtype=np.float32))
+        smpl = [img0, label]
         return smpl
 
     def __len__(self):
