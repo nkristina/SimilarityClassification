@@ -19,8 +19,6 @@ class ContrastiveLoss(nn.Module):
         )/2
 
         return loss_contrastive
-    # VEROVATNO GRESKA za batch
-    # pairwise distance -> keepdim na false
 
 
 #create a siamese network
@@ -101,6 +99,75 @@ class EfficientSiemens(nn.Module):
         output2 = self.model(input2)
         return output1, output2
 
+
+class EfficientSiemens2(nn.Module):
+    def __init__(self, embeding_size):
+        super(EfficientSiemens2, self).__init__()
+        print("INIT")
+        self.model = models.efficientnet_b0(pretrained=True)
+
+        for params in self.model.parameters():
+            params.requires_grad = False
+        
+        self.model.classifier[1] = nn.Linear(in_features=1280, out_features=128)
+        
+        pytorch_total_params = sum(p.numel() for p in self.model.parameters() if p.requires_grad)
+        print(pytorch_total_params)
+        
+        self.fc = nn.Linear(128, embeding_size)
+        
+
+    def forward(self, input1, input2):
+        # forward pass of input 1
+        output1 = self.model(input1)
+        output1 = self.fc(output1)
+        # forward pass of input 2
+        output2 = self.model(input2)
+        output2 = self.fc(output2)
+        return output1, output2
+
+class Efficientb4Siemens(nn.Module):
+    def __init__(self, embeding_size):
+        super(Efficientb4Siemens, self).__init__()
+        print("INIT")
+        self.model = models.efficientnet_b4(pretrained=True)
+
+        for params in self.model.parameters():
+            params.requires_grad = False
+        
+        self.model.classifier[1] = nn.Linear(in_features=1792, out_features=embeding_size)
+
+        pytorch_total_params = sum(p.numel() for p in self.model.parameters() if p.requires_grad)
+        print(pytorch_total_params)
+        
+
+    def forward(self, input1, input2):
+        # forward pass of input 1
+        output1 = self.model(input1)
+        # forward pass of input 2
+        output2 = self.model(input2)
+        return output1, output2
+
+class ResNet34(nn.Module):
+    def __init__(self, embeding_size):
+        super(ResNet34, self).__init__()
+        print("INIT")
+        self.model = models.resnet34(pretrained=True)
+
+        for params in self.model.parameters():
+            params.requires_grad = False
+        
+        self.model.fc = nn.Linear(in_features=self.model.fc.in_features, out_features=embeding_size)
+
+        pytorch_total_params = sum(p.numel() for p in self.model.parameters() if p.requires_grad)
+        print(pytorch_total_params)
+        
+    def forward(self, input1, input2):
+        # forward pass of input 1
+        output1 = self.model(input1)
+        # forward pass of input 2
+        output2 = self.model(input2)
+        return output1, output2
 
 class EfficientSiemensBinary(nn.Module):
     def __init__(self, embeding_size):

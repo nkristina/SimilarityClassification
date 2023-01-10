@@ -3,14 +3,14 @@ import os
 from PIL import Image
 import matplotlib.pyplot as plt
 import pandas as pd
+import random
 
 from torch.utils.data import Dataset
 import torch
 
 
-def generate_ds(name, num_class=20, ds_size=None):
+def generate_ds(name, num_class=20, DATA_DIR='tiny-imagenet-200-test', ds_size=None, val=False):
     # Define main data directory
-    DATA_DIR = 'tiny-imagenet-200-test' # Original images come in shapes of [3,64,64]
 
     # Define training and validation data paths
     TRAIN_DIR = os.path.join(DATA_DIR, 'train') 
@@ -30,7 +30,7 @@ def generate_ds(name, num_class=20, ds_size=None):
     fp.close()
 
     # SECOND STEP
-    classes = classes[1:num_class+1]
+    classes = classes[0:num_class]
 
     first_img = []
     second_img = []
@@ -53,9 +53,15 @@ def generate_ds(name, num_class=20, ds_size=None):
         fp1 = open(os.path.join(img_dir1, clas1 + '_boxes.txt'), 'r')
         data1 = fp1.readlines()
 
+        if not val:
+            stop = int(len(data1)*0.8)
+            start = 0
+        else:
+            start = int(len(data1)*0.8)+1
+            stop = len(data1)
         ok1 = False
         while not ok1:
-            choise = data1[np.random.randint(0,len(data1))].split('\t')[0]
+            choise = data1[np.random.randint(start,stop)].split('\t')[0]
             path  = os.path.join(img_dir1,'images')
             path = os.path.join(path,choise)
             if(os.path.exists(path) and Image.open(path).mode=='RGB'):
@@ -67,9 +73,15 @@ def generate_ds(name, num_class=20, ds_size=None):
         fp2 = open(os.path.join(img_dir2, clas2 + '_boxes.txt'), 'r')
         data2 = fp2.readlines()
 
+        if not val:
+            stop = int(len(data2)*0.8)
+            start = 0
+        else:
+            start = int(len(data2)*0.8)+1
+            stop = len(data2)
         ok2 = False
         while not ok2:
-            choise = data2[np.random.randint(0,len(data2))].split('\t')[0]
+            choise = data2[np.random.randint(start,stop)].split('\t')[0]
             path = os.path.join(img_dir2,'images')
             path = os.path.join(path,choise)
             if(os.path.exists(path) and Image.open(path).mode=='RGB'):
@@ -83,25 +95,36 @@ def generate_ds(name, num_class=20, ds_size=None):
     
 #preprocessing and loading the dataset
 class SiameseDataset(Dataset):
-    def __init__(self,training_csv=None,training_dir=None,transform=None):
+    def __init__(self,training_csv=None,training_dir=None,transform=None, val=False):
         # used to prepare the labels and images path
         self.train_df=pd.read_csv(training_csv)
         self.train_dir = training_dir    
         self.transform = transform
+        self.val = val
 
     def __getitem__(self,index):
         # getting the image path
         img1 = self.train_df.iat[index,0]
         class1 = img1.split('_')[0]
-        image1_path=os.path.join(self.train_dir,class1)
-        image1_path=os.path.join(image1_path,'images')
-        image1_path=os.path.join(image1_path,img1)
+        if self.val:
+            image1_path=os.path.join(self.train_dir,'images')
+            image1_path=os.path.join(image1_path,class1)
+            image1_path=os.path.join(image1_path,img1)
+        else:
+            image1_path=os.path.join(self.train_dir,class1)
+            image1_path=os.path.join(image1_path,'images')
+            image1_path=os.path.join(image1_path,img1)
 
         img2 = self.train_df.iat[index,1]
         class2 = img2.split('_')[0]
-        image2_path=os.path.join(self.train_dir,class2)
-        image2_path=os.path.join(image2_path,'images')
-        image2_path=os.path.join(image2_path,img2)
+        if self.val:
+            image2_path=os.path.join(self.train_dir,'images')
+            image2_path=os.path.join(image2_path, class2)
+            image2_path=os.path.join(image2_path,img2)
+        else:
+            image2_path=os.path.join(self.train_dir,class2)
+            image2_path=os.path.join(image2_path,'images')
+            image2_path=os.path.join(image2_path,img2)
 
         # Loading the image
         img0 = Image.open(image1_path)
@@ -210,6 +233,124 @@ class SiameseDataset(Dataset):
 
     def __len__(self):
         return len(self.train_df)
+
+class TestingDatasetImageNet(Dataset):
+
+    def __init__(self,imageFolderDataset, idx, transform=None):
+        self.imageFolderDataset = imageFolderDataset    
+        self.transform = transform
+        self.idx = idx
+    
+    def __getitem__(self,index):
+        while True:
+            ind = np.random.randint(0,len(self.idx))
+            img0_tuple = self.imageFolderDataset.imgs[self.idx[ind]]
+            if Image.open(img0_tuple[0]).mode=='RGB':
+                break
+        #we need to make sure approx 50% of images are in the same class
+        should_get_same_class = random.randint(0,1) 
+        if should_get_same_class:
+            while True:
+                #keep looping till the same class image is found
+                ind = np.random.randint(0,len(self.idx))
+                img1_tuple = self.imageFolderDataset.imgs[self.idx[ind]] 
+                if img0_tuple[1]==img1_tuple[1] and Image.open(img1_tuple[0]).mode=='RGB':
+                    break
+        else:
+            while True:
+                #keep looping till a different class image is found
+                ind = np.random.randint(0,len(self.idx))
+                img1_tuple = self.imageFolderDataset.imgs[self.idx[ind]] 
+                if img0_tuple[1] !=img1_tuple[1] and Image.open(img1_tuple[0]).mode=='RGB':
+                    break
+
+        img0 = Image.open(img0_tuple[0])
+        img1 = Image.open(img1_tuple[0])
+
+        if self.transform is not None:
+            img0 = self.transform(img0)
+            img1 = self.transform(img1)
+        
+        return img0, img1 , torch.from_numpy(np.array([int(img1_tuple[1]==img0_tuple[1])],dtype=np.float32))
+
+    def __len__(self):
+        return len(self.idx)
+
+
+class TreningDatasetImageNet(Dataset):
+
+    def __init__(self,imageFolderDataset, idx, transform=None, val=False):
+        self.imageFolderDataset = imageFolderDataset    
+        self.transform = transform
+        if val:
+            self.idx = idx[0::5]
+        else:
+            del idx[0::5]
+            self.idx = idx
+        self.val = val
+
+    def __getitem__(self,index):
+        while True:
+            ind = np.random.randint(0,len(self.idx))
+            img0_tuple = self.imageFolderDataset.imgs[self.idx[ind]]
+            if Image.open(img0_tuple[0]).mode=='RGB':
+                break
+        #we need to make sure approx 50% of images are in the same class
+        should_get_same_class = random.randint(0,1) 
+        if should_get_same_class:
+            while True:
+                #keep looping till the same class image is found
+                ind = np.random.randint(0,len(self.idx))
+                img1_tuple = self.imageFolderDataset.imgs[self.idx[ind]] 
+                if img0_tuple[1]==img1_tuple[1] and Image.open(img1_tuple[0]).mode=='RGB':
+                    break
+        else:
+            while True:
+                #keep looping till a different class image is found
+                ind = np.random.randint(0,len(self.idx))
+                img1_tuple = self.imageFolderDataset.imgs[self.idx[ind]] 
+                if img0_tuple[1] !=img1_tuple[1] and Image.open(img1_tuple[0]).mode=='RGB':
+                    break
+
+        img0 = Image.open(img0_tuple[0])
+        img1 = Image.open(img1_tuple[0])
+
+        if self.transform is not None:
+            img0 = self.transform(img0)
+            img1 = self.transform(img1)
+        
+        return img0, img1 , torch.from_numpy(np.array([int(img1_tuple[1]==img0_tuple[1])],dtype=np.float32))
+    
+    def __len__(self):
+        return len(self.idx)
+
+class NxNTreningDatasetImageNet(Dataset):
+
+    def __init__(self,imageFolderDataset, idx, transform=None):
+        self.imageFolderDataset = imageFolderDataset    
+        self.transform = transform
+        self.idx = idx
+
+    def __getitem__(self,index):
+        
+        i1 = index//len(self.idx)
+        i2 = index % len(self.idx)
+
+        img0_tuple = self.imageFolderDataset.imgs[self.idx[i1]]
+        img1_tuple = self.imageFolderDataset.imgs[self.idx[i2]] 
+
+        img0 = Image.open(img0_tuple[0])
+        img1 = Image.open(img1_tuple[0])
+
+        if self.transform is not None:
+            img0 = self.transform(img0)
+            img1 = self.transform(img1)
+        
+        return img0, img1 , torch.from_numpy(np.array([int(img1_tuple[1]==img0_tuple[1])],dtype=np.float32))
+    
+    def __len__(self):
+        return len(self.idx)*len(self.idx)
+
 
 #preprocessing and loading the dataset
 class SDataset(Dataset):
