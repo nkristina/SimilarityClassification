@@ -26,12 +26,12 @@ def trainSiamens(net, tresholds, epochs, train_dataloader, device, optimizer, cr
     acc_val = np.zeros([len(tresholds),epochs])
     iteration_number = 0
     iteration_number_v = 0
-    out1, out2, out3, out4, out5, lab = [], [], [], [], [], []
+    out1, out2, out3, out4, out5, out6, lab = [], [], [], [], [], [], []
     for epoch in range(0,epochs):
         acc_ep = np.zeros(len(tresholds))
         items = 0
         batch = 0
-        out1.clear(), out2.clear(), out3.clear(), out4.clear(), out5.clear()
+        out1.clear(), out2.clear(), out3.clear(), out4.clear(), out5.clear(), out6.clear()
         lab.clear()
         net.train()
         for batch_id, smpl in enumerate(tqdm(train_dataloader)):
@@ -50,7 +50,7 @@ def trainSiamens(net, tresholds, epochs, train_dataloader, device, optimizer, cr
             items = items + len(label)
             batch = batch + 1
             out1.append(euclidean_distance<0.75), out2.append(euclidean_distance<1.0), out3.append(euclidean_distance<1.25)
-            out4.append(euclidean_distance<1.5), out5.append(euclidean_distance<1.75), lab.append(label)
+            out4.append(euclidean_distance<1.5), out5.append(euclidean_distance<1.75), out6.append(euclidean_distance<0.5), lab.append(label)
         print("Epoch {}\n Current loss {}".format(epoch,loss_contrastive.item()))
         for m in range(len(tresholds)):
             print("Current accuracy {} for {}\n".format(acc_ep[m]/items,tresholds[m]))
@@ -140,8 +140,8 @@ def trainSiamens(net, tresholds, epochs, train_dataloader, device, optimizer, cr
     cm_display.plot()
     plt.show()
 
-    p = np.zeros([5,1])
-    r = np.zeros([5,1])
+    p = np.zeros([6,1])
+    r = np.zeros([6,1])
 
     outputs = np.concatenate(out1) 
     p[0]=precision_score(outputs,targets)
@@ -158,14 +158,22 @@ def trainSiamens(net, tresholds, epochs, train_dataloader, device, optimizer, cr
     outputs = np.concatenate(out5) 
     p[4]=precision_score(outputs,targets)
     r[4]=recall_score(outputs, targets)
+    outputs = np.concatenate(out6) 
+    p[5]=precision_score(outputs,targets)
+    r[5]=recall_score(outputs, targets)
+
+    labels = ['0.75','1.0','1.25','1.5','1.75','0.5']
 
     plt.Figure()
-    plt.scatter(p, r)
-    plt.title("Precision - recall graph for different tresholds]")
+    plt.plot(p, r,'-o')
+    plt.title("Precision - recall graph for different tresholds")
     plt.xlabel('Precision')
-    plt.xlabel('Recall')
-    plt.xlim([0,1])
-    plt.ylim([0,1])
+    plt.ylabel('Recall')
+    plt.xlim([0,1.25])
+    plt.ylim([0,1.25])
+
+    for i, txt in enumerate(labels):
+        plt.annotate(txt, (p[i], r[i]))
     plt.show()
 
     print('Precision:')
@@ -180,7 +188,7 @@ def test(net, tresholds, test_dataloader, device, criterion, best_tr=1):
     acc_v = np.zeros(len(tresholds))
     items = 0
     batch = 0
-    out1, out2, out3, out4, out5, lab = [], [], [], [], [], []
+    out1, out2, out3, out4, out5, out6, lab = [], [], [], [], [], [], []
     for batch_id, smpl in enumerate(tqdm(test_dataloader)):
         sleep(0.1)
         img0, img1, label = smpl[0], smpl[1], smpl[2]
@@ -194,7 +202,7 @@ def test(net, tresholds, test_dataloader, device, criterion, best_tr=1):
         items = items + len(label)
         batch = batch + 1
         out1.append(euclidean_distance<0.75), out2.append(euclidean_distance<1.0), out3.append(euclidean_distance<1.25)
-        out4.append(euclidean_distance<1.5), out5.append(euclidean_distance<1.75), lab.append(label)
+        out4.append(euclidean_distance<1.5), out5.append(euclidean_distance<1.75), out6.append(euclidean_distance<0.5), lab.append(label)
     print("Test loss {}".format(loss_contrastive.item()))
     for m in range(len(tresholds)):
         print("Test accuracy {} for {}\n".format(acc_v[m]/items,tresholds[m]))
@@ -209,8 +217,8 @@ def test(net, tresholds, test_dataloader, device, criterion, best_tr=1):
     cm_display.plot()
     plt.show()
 
-    p = np.zeros([5,1])
-    r = np.zeros([5,1])
+    p = np.zeros([6,1])
+    r = np.zeros([6,1])
 
     outputs = np.concatenate(out1) 
     p[0]=precision_score(outputs,targets)
@@ -227,14 +235,22 @@ def test(net, tresholds, test_dataloader, device, criterion, best_tr=1):
     outputs = np.concatenate(out5) 
     p[4]=precision_score(outputs,targets)
     r[4]=recall_score(outputs, targets)
+    outputs = np.concatenate(out6) 
+    p[5]=precision_score(outputs,targets)
+    r[5]=recall_score(outputs, targets)
+
+    labels = ['0.75','1.0','1.25','1.5','1.75','0.5']
 
     plt.Figure()
-    plt.scatter(p, r)
-    plt.title("Precision - recall graph for different tresholds]")
+    plt.plot(p, r,'-o')
+    plt.title("Precision - recall graph for different tresholds")
     plt.xlabel('Precision')
-    plt.xlabel('Recall')
-    plt.xlim([0,1])
-    plt.ylim([0,1])
+    plt.ylabel('Recall')
+    plt.xlim([0,1.25])
+    plt.ylim([0,1.25])
+
+    for i, txt in enumerate(labels):
+        plt.annotate(txt, (p[i], r[i]))
     plt.show()
 
     print('Precision:')
