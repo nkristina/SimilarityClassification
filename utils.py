@@ -13,8 +13,8 @@ def imshow(img):
     
 def show_batch(dataloader):
     dataiter = iter(dataloader)
-    images, labels = dataiter.next()    
-    imshow(make_grid(images)) # Using Torchvision.utils make_grid function
+    images1, images2, labels = dataiter.next()
+    imshow(make_grid(images1)) # Using Torchvision.utils make_grid function
     
 def show_image(dataloader):
     dataiter = iter(dataloader)
@@ -38,3 +38,8 @@ def get_accuracy_bin(y_true, y_prob, treshold):
     y_prob = sig(y_prob)
     y_prob = y_prob > treshold
     return (y_true == y_prob).sum().item() / y_true.size(0)
+
+def get_out_bin(y_prob, treshold):
+    sig = nn.Sigmoid()
+    y_prob = sig(y_prob)
+    return y_prob > treshold
